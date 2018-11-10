@@ -1,0 +1,52 @@
+{
+  "username": "admin",
+  "type": 1,
+  "action": "ready",
+  "content": "准备",
+  "room": {
+    "state": 0,
+    "table": {
+      "cardList": [],
+      "step": 0,
+      "pointPlayerList": []
+    },
+    "playerList": [
+      {
+        "state": 1,
+        "name": "tiny001",
+        "type": "east",
+        "banker": true,
+        "handCardList": [],
+        "playCardList": [],
+        "drawCardList": []
+      },
+      {
+        "state": 0,
+        "name": "tiny003",
+        "type": "west",
+        "banker": false,
+        "handCardList": [],
+        "playCardList": [],
+        "drawCardList": []
+      },
+      {
+        "state": 0,
+        "name": "tiny005",
+        "type": "south",
+        "banker": false,
+        "handCardList": [],
+        "playCardList": [],
+        "drawCardList": []
+      },
+      {
+        "state": 0,
+        "name": "tiny007",
+        "type": "north",
+        "banker": false,
+        "handCardList": [],
+        "playCardList": [],
+        "drawCardList": []
+      }
+    ]
+  }
+}

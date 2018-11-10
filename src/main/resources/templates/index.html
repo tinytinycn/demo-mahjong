@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mahjong</title>
+</head>
+<body>
+<!--使用JQuery时引入-->
+<script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+<!--使用SockJS时引入-->
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<!--使用Stomp时引入-->
+<script src="https://cdn.bootcss.com/stomp.js/2.3.3/stomp.js"></script>
+玩家:
+<input type="text" id="username-input" value="tiny">
+出牌id:
+<input type="text" id="play-card-id-input" value="tiny message's content">
+出牌值:
+<input type="text" id="play-card-value-input" value="tiny message's content">
+出牌类型
+<input type="text" id="play-card-type-input" value="tiny message's content">
+<br>
+<input type="button" onclick="sendMessage('/app/post', 0, 'ready', '准备')" value="准备">
+<input type="button" onclick="sendMessage('/app/post', 1, 'start', '开始')" value="开始">
+<br>
+<input type="button" onclick="sendMessage('/app/post', 2, 'mopai', '摸牌')" value="摸牌">
+<input type="button" onclick="sendMessage('/app/post', 2, 'chupai', '出牌')" value="出牌">
+<br>
+<input type="button" onclick="sendMessage('/app/post', 2, 'wait', '胡牌')" value="喊胡">
+<input type="button" onclick="sendMessage('/app/post', 2, 'wait', '杠牌')" value="喊杠">
+<input type="button" onclick="sendMessage('/app/post', 2, 'wait', '碰牌')" value="喊碰">
+<input type="button" onclick="sendMessage('/app/post', 2, 'wait', '吃牌')" value="喊吃">
+<br>
+<input type="button" onclick="sendMessage('/app/post', 2, 'gangpai', '杠!')" value="杠!">
+<input type="button" onclick="sendMessage('/app/post', 2, 'pengpai', '碰!')" value="碰!">
+<input type="button" onclick="sendMessage('/app/post', 2, 'chipai', '吃!')" value="吃!">
+<br>
+<p>======</p>
+<div id="cardList">
+
+</div>
+<div id="log">
+    <p id="log-first">======</p>
+</div>
+<script>
+    //端点
+    var url = 'http://localhost:8080/room-end-point';
+    //stomp客户端
+    var stompClient = null;
+    //随机用户名
+    var username = 'tiny' + Math.floor(Math.random() * 1000 + 1);
+    $('#username-input').val(username);
+    $('#play-card-id-input').val(0);
+    $('#play-card-value-input').val(0);
+    $('#play-card-type-input').val("*");
+    //玩家手牌
+    var handCardList = [];
+
+    //自动订阅
+    autoConnect();
+
+    function autoConnect() {
+        var sock = new SockJS(url);
+        stompClient = Stomp.over(sock);
+        stompClient.connect({}, function (frame) {
+            console.log('connected: ' + frame);
+            //订阅广播
+            stompClient.subscribe('/topic/public', handlePublicMessage);
+            //订阅私人频道
+            stompClient.subscribe('/user/' + username + '/fapai', handlePrivateMessage);
+        });
+
+    }
+
+    function sendMessage(destination, type, action, content) {
+        var obj = {};
+        obj.username = $('#username-input').val();
+        obj.type = type;
+        obj.action = action;
+        obj.content = content;
+        var card = {};
+        card.id = $('#play-card-id-input').val();
+        card.type = $('#play-card-type-input').val();
+        card.value = $('#play-card-value-input').val();
+        var playCardList = [];
+        var drawCardList = [];
+        var table = {};
+        playCardList[0] = card;
+        table.playCardList = playCardList;
+        table.drawCardList = drawCardList;
+        obj.table = table;
+
+        var payload = JSON.stringify(obj);
+        stompClient.send(destination, {}, payload);
+
+        if (action === 'chupai') {
+            $('input#id_' + card.id).remove();
+            var newHandCardList = [];
+            console.log(handCardList)
+            for (var i = 0; i < handCardList.length; i++) {
+                if (handCardList[i].id === Number(card.id)) {
+                    continue;
+                }
+                newHandCardList.push(handCardList[i]);
+            }
+            handCardList = newHandCardList;
+            console.log(handCardList);
+        }
+    }
+
+    function handlePublicMessage(msg) {
+        var result = JSON.parse(msg.body);
+        console.log('客户端接收消息: ' + result.content);
+        $("p#log-first").after("<p>" + result.content + "</p>");
+
+    }
+
+    function handlePrivateMessage(msg) {
+        var result = JSON.parse(msg.body);
+        console.log('客户端接收消息: ' + result.content);
+        $("p#log-first").after("<p>" + result.content + "</p>");
+
+        if (result.action in {'shoupai': '', 'mopai': ''}) {
+            //清理手牌
+            $('div#cardList').empty();
+            for (var i = 0; i < result.table.drawCardList.length; i++) {
+                var p = result.table.drawCardList[i];
+                handCardList.push(p);
+            }
+            //排序
+            handCardList.sort(cardCompare);
+            for (var index in handCardList) {
+                var card = handCardList[index];
+                var card_input = $('<input>');
+                card_input.attr('id', 'id_' + card.id);
+                card_input.attr('type', 'button');
+                card_input.attr('value', card.value + card.type);
+                card_input.attr('onclick', 'selectOneCard(' + card.id + ',' + card.value + ',\'' + card.type + '\')');
+                $('div#cardList').append(card_input);
+            }
+        }
+    }
+
+    function selectOneCard(id, value, type) {
+        $('input#play-card-id-input').val(id);
+        $('input#play-card-value-input').val(value);
+        $('input#play-card-type-input').val(type);
+    }
+
+    //返回值大于0, 执行交换
+    function cardCompare(var1, var2) {
+        if (var1.type !== var2.type) {
+            if (var1.type === 't') {
+                return 1;
+            }
+            if (var1.type === 'b' && var2.type === 'w') {
+                return 1;
+            }
+            return -1;
+        } else {
+            return var1.value - var2.value;
+        }
+    }
+
+
+</script>
+</body>
+</html>
